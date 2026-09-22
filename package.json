@@ -1,0 +1,5 @@
+{
+  "name": "xolo", "private": true, "packageManager": "pnpm@9.15.4",
+  "scripts": { "dev": "pnpm --parallel --filter @xolo/server --filter @xolo/web dev", "build": "pnpm -r build", "typecheck": "pnpm --filter @xolo/protocol build && pnpm -r typecheck", "lint": "pnpm -r lint", "test": "pnpm -r test", "db:generate": "pnpm --filter @xolo/server db:generate", "db:migrate": "pnpm --filter @xolo/server db:migrate" },
+  "devDependencies": { "typescript": "^5.7.3", "@types/node": "^22.10.5" }
+}
