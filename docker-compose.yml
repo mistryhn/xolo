@@ -5,10 +5,10 @@ services:
       POSTGRES_DB: xolo
       POSTGRES_USER: xolo
       POSTGRES_PASSWORD: xolo
-    ports: ["5432:5432"]
+    ports: ['5432:5432']
     volumes: [postgres_data:/var/lib/postgresql/data]
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ['6379:6379']
 volumes:
   postgres_data:
