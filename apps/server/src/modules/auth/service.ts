@@ -5,18 +5,15 @@ import { users } from '../../db/schema/users.js'
 import type { LoginInput, RegisterInput } from '@xolo/protocol'
 
 export async function register(input: RegisterInput) {
-  
   const passwordHash = await argon2.hash(input.password)
-  
+
   const [user] = await db
     .insert(users)
     .values({ name: input.name, email: input.email.toLowerCase(), passwordHash })
     .returning({ id: users.id, name: users.name, email: users.email })
   return user
-
 }
 export async function authenticate(input: LoginInput) {
-  
   const [user] = await db
     .select()
     .from(users)

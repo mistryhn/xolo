@@ -8,7 +8,7 @@ export default tseslint.config(
     ignores: ['**/node_modules/**', '**/dist/**', '**/build/**'],
   },
   eslint.configs.recommended,
-  ...tseslint.configs.recommended, 
+  ...tseslint.configs.recommended,
   {
     files: ['apps/web/**/*.{js,jsx,ts,tsx}'],
     plugins: {

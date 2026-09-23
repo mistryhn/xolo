@@ -18,7 +18,7 @@ function App() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
-  const [chats, setChats] = useState<any[]>([])
+  const [chats, setChats] = useState<[]>([])
   const { zoneKey, setZone } = useZoneStore()
   const { setActive, add } = useChatStore()
   useEffect(() => {
@@ -87,7 +87,7 @@ function App() {
         headers: { authorization: `Bearer ${session!.token}` },
       })
       const json = await r.json()
-      ;(json.data ?? []).forEach((m: any) => add({ ...m, alias: 'Earlier message' }))
+      ;(json.data ?? []).forEach((m) => add({ ...m, alias: 'Earlier message' }))
     })
   }
   if (!session)
