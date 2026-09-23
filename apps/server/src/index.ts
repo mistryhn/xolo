@@ -9,6 +9,7 @@ import { chatRoutes } from './modules/chat/routes.js'
 import { attachSockets } from './sockets/index.js'
 import { pool } from './db/drizzle.js'
 import { redis } from './redis/client.js'
+
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (
@@ -17,17 +18,21 @@ declare module 'fastify' {
     ) => Promise<void>
   }
 }
+
 declare module '@fastify/jwt' {
   interface FastifyJWT {
     user: { sub: string }
   }
 }
+
 const app = Fastify({ logger: true })
 await app.register(cors, { origin: env.WEB_ORIGIN })
 await app.register(jwt, { secret: env.JWT_SECRET })
+
 app.decorate('authenticate', async (request) => {
   await request.jwtVerify()
 })
+
 registerErrorHandler(app)
 await app.register(authRoutes, { prefix: '/api/auth' })
 await app.register(geoRoutes, { prefix: '/api/zones' })

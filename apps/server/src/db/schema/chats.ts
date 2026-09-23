@@ -1,5 +1,6 @@
 import { pgTable, timestamp, uuid, varchar, integer, text, uniqueIndex } from 'drizzle-orm/pg-core'
 import { users } from './users.js'
+
 export const chats = pgTable('chats', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 10 }).notNull(),
@@ -13,6 +14,7 @@ export const chats = pgTable('chats', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   closedAt: timestamp('closed_at', { withTimezone: true }),
 })
+
 export const chatParticipants = pgTable(
   'chat_participants',
   {
@@ -29,6 +31,7 @@ export const chatParticipants = pgTable(
   },
   (t) => [uniqueIndex('participant_once').on(t.chatId, t.userId)],
 )
+
 export const messages = pgTable(
   'messages',
   {
@@ -45,6 +48,7 @@ export const messages = pgTable(
   },
   (t) => [uniqueIndex('message_client_id').on(t.senderId, t.clientId)],
 )
+
 export const reactions = pgTable(
   'reactions',
   {

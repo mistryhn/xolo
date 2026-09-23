@@ -1,10 +1,16 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import { z } from 'zod'
+
+dotenv.config({
+  path: '../../.env',
+})
+
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
-  JWT_SECRET: z.string().min(32),
+  JWT_SECRET: z.string().min(5),
   SERVER_PORT: z.coerce.number().int().positive().default(3000),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
 })
+
 export const env = envSchema.parse(process.env)

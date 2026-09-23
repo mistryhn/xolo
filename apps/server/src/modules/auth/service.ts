@@ -11,6 +11,7 @@ export async function register(input: RegisterInput) {
     .insert(users)
     .values({ name: input.name, email: input.email.toLowerCase(), passwordHash })
     .returning({ id: users.id, name: users.name, email: users.email })
+
   return user
 }
 export async function authenticate(input: LoginInput) {

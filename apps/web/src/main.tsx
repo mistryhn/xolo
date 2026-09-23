@@ -6,11 +6,14 @@ import { socket, connectSocket } from './lib/socket'
 import { useZoneStore } from './store/zoneStore'
 import { useChatStore } from './store/chatStore'
 import './styles.css'
+
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+
 type Session = {
   token: string
   user: { id: string; name: string; email: string }
 }
+
 function App() {
   const [session, setSession] = useState<Session | null>(() =>
     JSON.parse(localStorage.getItem('xolo-session') ?? 'null'),
@@ -21,6 +24,7 @@ function App() {
   const [chats, setChats] = useState<[]>([])
   const { zoneKey, setZone } = useZoneStore()
   const { setActive, add } = useChatStore()
+
   useEffect(() => {
     if (!session) return
     connectSocket(session.token)
@@ -30,6 +34,7 @@ function App() {
       socket.disconnect()
     }
   }, [session, add])
+
   async function auth(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -45,6 +50,7 @@ function App() {
     localStorage.setItem('xolo-session', JSON.stringify(json.data))
     setSession(json.data)
   }
+
   async function enterZone(coords: { latitude: number; longitude: number }) {
     const r = await fetch(`${api}/api/zones/resolve`, {
       method: 'POST',
@@ -62,6 +68,7 @@ function App() {
     })
     setChats((await rooms.json()).data ?? [])
   }
+
   async function create(type: 'private' | 'group') {
     const title = type === 'group' ? window.prompt('Room name') : undefined
     if (type === 'group' && !title) return
@@ -79,6 +86,7 @@ function App() {
       join(json.data.id)
     }
   }
+
   function join(chatId: string) {
     socket.emit('chat:join', { chatId }, async (result) => {
       if ('error' in result) return setError(result.error)
@@ -90,6 +98,7 @@ function App() {
       ;(json.data ?? []).forEach((m) => add({ ...m, alias: 'Earlier message' }))
     })
   }
+
   if (!session)
     return (
       <main>
@@ -127,12 +136,14 @@ function App() {
         {error && <p role="alert">{error}</p>}
       </main>
     )
+
   if (!zoneKey)
     return (
       <main>
         <ZonePermissionGate onZone={enterZone} />
       </main>
     )
+
   return (
     <main>
       <header>
@@ -164,4 +175,5 @@ function App() {
     </main>
   )
 }
+
 createRoot(document.getElementById('root')!).render(<App />)
