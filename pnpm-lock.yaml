@@ -65,12 +65,6 @@ importers:
       fastify:
         specifier: ^5.2.1
         version: 5.12.5
-      geohash:
-        specifier: ^0.0.1
-        version: 0.0.1
-      ioredis:
-        specifier: ^5.4.2
-        version: 5.11.1
       pg:
         specifier: ^8.13.1
         version: 8.23.0

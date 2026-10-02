@@ -1,8 +1,0 @@
-export function currentPosition() {
-  return new Promise<GeolocationCoordinates>((resolve, reject) =>
-    navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), reject, {
-      enableHighAccuracy: false,
-      timeout: 10000,
-    }),
-  )
-}

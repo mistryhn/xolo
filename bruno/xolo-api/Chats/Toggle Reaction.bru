@@ -1,0 +1,22 @@
+meta {
+  name: Toggle Reaction
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/chats/{{chatId}}/messages/{{messageId}}/reactions
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "emoji": "👍"
+  }
+}

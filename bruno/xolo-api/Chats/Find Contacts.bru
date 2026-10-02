@@ -1,0 +1,15 @@
+meta {
+  name: Find Contacts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/chats/contacts?search={{search}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
