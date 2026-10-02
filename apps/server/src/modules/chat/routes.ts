@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { and, desc, eq, ilike, inArray, isNull, or, ne } from 'drizzle-orm'
 import { createChatSchema, reactionSchema, sendMessageSchema } from '@xolo/protocol'
-import { chats, chatParticipants, messages, reactions as chatReactions } from '../../db/schema/chats.js'
+import {
+  chats,
+  chatParticipants,
+  messages,
+  reactions as chatReactions,
+} from '../../db/schema/chats.js'
 import { users } from '../../db/schema/users.js'
 import { db } from '../../db/drizzle.js'
 import { addMessage, createChat, joinChat, participant, toggleReaction } from './service.js'
@@ -121,7 +126,9 @@ export async function chatRoutes(app: FastifyInstance) {
         .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
         .limit(1)
       if (!message)
-        return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Message not found' } })
+        return reply
+          .status(404)
+          .send({ error: { code: 'NOT_FOUND', message: 'Message not found' } })
       const active = await toggleReaction(messageId, request.user.sub, input.emoji)
       const reactionRows = await db
         .select({ id: chatReactions.id })
@@ -157,7 +164,12 @@ export async function chatRoutes(app: FastifyInstance) {
     const reactionRows = await db
       .select()
       .from(chatReactions)
-      .where(inArray(chatReactions.messageId, history.map((message) => message.id)))
+      .where(
+        inArray(
+          chatReactions.messageId,
+          history.map((message) => message.id),
+        ),
+      )
     const reactionsByMessage = new Map<string, typeof reactionRows>()
     for (const reaction of reactionRows) {
       const rows = reactionsByMessage.get(reaction.messageId) ?? []
@@ -168,13 +180,21 @@ export async function chatRoutes(app: FastifyInstance) {
       data: history.map((message) => ({
         ...message,
         alias: aliases.get(message.senderId) ?? 'User',
-        reactions: [...(reactionsByMessage.get(message.id) ?? []).reduce((groups, row) => {
-          const group = groups.get(row.emoji) ?? { emoji: row.emoji, count: 0, reactedByMe: false }
-          group.count += 1
-          group.reactedByMe ||= row.userId === request.user.sub
-          groups.set(row.emoji, group)
-          return groups
-        }, new Map<string, { emoji: string; count: number; reactedByMe: boolean }>()).values()],
+        reactions: [
+          ...(reactionsByMessage.get(message.id) ?? [])
+            .reduce((groups, row) => {
+              const group = groups.get(row.emoji) ?? {
+                emoji: row.emoji,
+                count: 0,
+                reactedByMe: false,
+              }
+              group.count += 1
+              group.reactedByMe ||= row.userId === request.user.sub
+              groups.set(row.emoji, group)
+              return groups
+            }, new Map<string, { emoji: string; count: number; reactedByMe: boolean }>())
+            .values(),
+        ],
       })),
     }
   })

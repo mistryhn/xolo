@@ -34,20 +34,28 @@ export function ChatWindow({
         <div className="empty-brand">X</div>
         <h2>Your conversations, all in one place</h2>
         <p>Select a chat or search for someone to start messaging.</p>
-        {error && <p className="chat-error" role="alert">{error}</p>}
+        {error && (
+          <p className="chat-error" role="alert">
+            {error}
+          </p>
+        )}
       </section>
     )
 
   return (
     <section className="conversation-pane">
       <header className="conversation-header">
-        <button className="back-button" onClick={onBack} aria-label="Back to chats">‹</button>
+        <button className="back-button" onClick={onBack} aria-label="Back to chats">
+          ‹
+        </button>
         <span className="avatar">{title.slice(0, 1).toUpperCase()}</span>
         <strong>{title}</strong>
       </header>
       <div className="message-list">
         {loading && messages.length === 0 && <p className="thread-note">Loading messages...</p>}
-        {!loading && messages.length === 0 && <p className="thread-note">No messages yet. Say hello.</p>}
+        {!loading && messages.length === 0 && (
+          <p className="thread-note">No messages yet. Say hello.</p>
+        )}
         {messages.map((m) => {
           const own = String(m.senderId).toLowerCase() === String(currentUserId).toLowerCase()
           const heart = m.reactions?.find((reaction) => reaction.emoji === '❤️')
@@ -67,7 +75,12 @@ export function ChatWindow({
               >
                 <div className="message-bubble">
                   <span>{m.body}</span>
-                  <time>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+                  <time>
+                    {new Date(m.createdAt).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </time>
                 </div>
                 <div className="message-reactions">
                   {heart && <span className="reaction-count">❤️ {heart.count}</span>}
@@ -149,11 +162,19 @@ export function ChatWindow({
           aria-label="Message"
           placeholder="Type a message"
         />
-        <button className="send-button" disabled={!body.trim() || sending} aria-label="Send message">
+        <button
+          className="send-button"
+          disabled={!body.trim() || sending}
+          aria-label="Send message"
+        >
           {sending ? 'Sending' : 'Send'}
         </button>
       </form>
-      {error && <p className="chat-error" role="alert">{error}</p>}
+      {error && (
+        <p className="chat-error" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   )
 }

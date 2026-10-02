@@ -54,15 +54,17 @@ function App() {
     const receiveMessage = (message: Message) => {
       add(message)
       setChats((items) =>
-        items.map((chat) =>
-          chat.id === message.chatId
-            ? { ...chat, lastMessage: { body: message.body, createdAt: message.createdAt } }
-            : chat,
-        ).sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt ?? a.createdAt
-          const bTime = b.lastMessage?.createdAt ?? b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        }),
+        items
+          .map((chat) =>
+            chat.id === message.chatId
+              ? { ...chat, lastMessage: { body: message.body, createdAt: message.createdAt } }
+              : chat,
+          )
+          .sort((a, b) => {
+            const aTime = a.lastMessage?.createdAt ?? a.createdAt
+            const bTime = b.lastMessage?.createdAt ?? b.createdAt
+            return new Date(bTime).getTime() - new Date(aTime).getTime()
+          }),
       )
     }
     const onChatAvailable = () => void refreshChats(session.token)
@@ -102,7 +104,9 @@ function App() {
       const response = await fetch(`${api}/api/auth/${mode === 'login' ? 'login' : 'register'}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(mode === 'login' ? { email: form.email, password: form.password } : form),
+        body: JSON.stringify(
+          mode === 'login' ? { email: form.email, password: form.password } : form,
+        ),
       })
       const json = await response.json()
       if (!response.ok) return setError(json.error?.message ?? 'Unable to continue')
@@ -203,11 +207,23 @@ function App() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
-          <button className="primary-button">{mode === 'login' ? 'Log in' : 'Create account'}</button>
-          <button className="link" type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-            {mode === 'login' ? 'New to Xolo? Create an account' : 'Already have an account? Log in'}
+          <button className="primary-button">
+            {mode === 'login' ? 'Log in' : 'Create account'}
           </button>
-          {error && <p className="error" role="alert">{error}</p>}
+          <button
+            className="link"
+            type="button"
+            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          >
+            {mode === 'login'
+              ? 'New to Xolo? Create an account'
+              : 'Already have an account? Log in'}
+          </button>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
         </form>
       </main>
     )
@@ -217,14 +233,22 @@ function App() {
       <section className="chat-layout">
         <aside className={`sidebar ${active ? 'sidebar-hidden-mobile' : ''}`}>
           <header className="sidebar-header">
-            <div className="brand-lockup"><span className="brand-mark small">X</span><strong>Xolo</strong></div>
+            <div className="brand-lockup">
+              <span className="brand-mark small">X</span>
+              <strong>Xolo</strong>
+            </div>
             <div className="account-tools">
               <span>{session.user.name}</span>
-              <button className="text-button" onClick={() => {
-                localStorage.removeItem('xolo-session')
-                socket.disconnect()
-                setSession(null)
-              }}>Log out</button>
+              <button
+                className="text-button"
+                onClick={() => {
+                  localStorage.removeItem('xolo-session')
+                  socket.disconnect()
+                  setSession(null)
+                }}
+              >
+                Log out
+              </button>
             </div>
           </header>
           <div className="search-wrap">
@@ -246,7 +270,10 @@ function App() {
               {contacts.map((person) => (
                 <button className="list-row" key={person.id} onClick={() => void startChat(person)}>
                   <span className="avatar">{person.name.slice(0, 1).toUpperCase()}</span>
-                  <span className="row-copy"><strong>{person.name}</strong><small>Start a conversation</small></span>
+                  <span className="row-copy">
+                    <strong>{person.name}</strong>
+                    <small>Start a conversation</small>
+                  </span>
                 </button>
               ))}
             </div>
@@ -254,7 +281,9 @@ function App() {
             <div className="list-content">
               <h2>Chats</h2>
               {loadingChats && <p className="empty-note">Loading chats...</p>}
-              {!loadingChats && chats.length === 0 && <p className="empty-note">No conversations yet. Search for someone to message.</p>}
+              {!loadingChats && chats.length === 0 && (
+                <p className="empty-note">No conversations yet. Search for someone to message.</p>
+              )}
               {chats.map((chat) => (
                 <button
                   className={`list-row ${activeChatId === chat.id ? 'selected' : ''}`}
@@ -266,7 +295,14 @@ function App() {
                     <strong>{chat.otherUser.name}</strong>
                     <small>{chat.lastMessage?.body ?? 'Start a conversation'}</small>
                   </span>
-                  {chat.lastMessage && <time>{new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>}
+                  {chat.lastMessage && (
+                    <time>
+                      {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </time>
+                  )}
                 </button>
               ))}
             </div>
