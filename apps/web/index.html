@@ -1,2 +1,33 @@
-<div id="root"></div>
-<script type="module" src="/src/main.tsx"></script>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#e7eeeb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1513" media="(prefers-color-scheme: dark)" />
+    <title>Xolo</title>
+    <script>
+      ;(function () {
+        var theme = 'light'
+        try {
+          var stored = localStorage.getItem('xolo-theme')
+          var mode =
+            stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system'
+          theme =
+            mode === 'dark' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+              ? 'dark'
+              : 'light'
+        } catch (error) {
+          theme = 'light'
+        }
+        document.documentElement.dataset.theme = theme
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

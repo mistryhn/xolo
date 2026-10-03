@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { ChatWindow } from './features/chat/ChatWindow'
 import { socket, connectSocket } from './lib/socket'
 import { useChatStore, type Message } from './store/chatStore'
+import { ThemeProvider } from './theme/ThemeProvider'
+import { ThemeToggle } from './theme/ThemeToggle'
 import './styles.css'
 
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -181,6 +183,7 @@ function App() {
     return (
       <main className="auth-page">
         <form className="auth-panel" onSubmit={auth}>
+          <ThemeToggle />
           <div className="brand-mark">X</div>
           <h1>Xolo</h1>
           <p>Messages that bring people closer.</p>
@@ -238,6 +241,7 @@ function App() {
               <strong>Xolo</strong>
             </div>
             <div className="account-tools">
+              <ThemeToggle />
               <span>{session.user.name}</span>
               <button
                 className="text-button"
@@ -325,4 +329,8 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>,
+)
