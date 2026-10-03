@@ -237,11 +237,17 @@ function App() {
         <header className="terminal-chrome">
           <div className="terminal-tabs">
             <div className="terminal-tab" aria-current="page">
-              <span className="terminal-tab-icon" aria-hidden="true">&gt;_</span>
+              <span className="terminal-tab-icon" aria-hidden="true">
+                &gt;_
+              </span>
               <span>Xolo Chat</span>
-              <span className="terminal-tab-close" aria-hidden="true">×</span>
+              <span className="terminal-tab-close" aria-hidden="true">
+                ×
+              </span>
             </div>
-            <span className="terminal-tab-add" aria-hidden="true">+</span>
+            <span className="terminal-tab-add" aria-hidden="true">
+              +
+            </span>
           </div>
           <div className="window-controls" aria-hidden="true">
             <span />
@@ -250,96 +256,100 @@ function App() {
           </div>
         </header>
         <section className="chat-layout">
-        <aside className={`sidebar ${active ? 'sidebar-hidden-mobile' : ''}`}>
-          <header className="sidebar-header">
-            <div className="brand-lockup">
-              <span className="brand-mark small">X</span>
-              <strong>Xolo</strong>
-            </div>
-            <div className="account-tools">
-              <ThemeToggle />
-              <span>{session.user.name}</span>
-              <button
-                className="text-button"
-                onClick={() => {
-                  localStorage.removeItem('xolo-session')
-                  socket.disconnect()
-                  setSession(null)
-                }}
-              >
-                Log out
-              </button>
-            </div>
-          </header>
-          <div className="search-wrap">
-            <input
-              aria-label="Search people"
-              placeholder="Search people by name or email"
-              value={search}
-              onChange={(e) => {
-                const value = e.target.value
-                setSearch(value)
-                if (value.trim().length < 2) setContacts([])
-              }}
-            />
-          </div>
-          {search.trim().length >= 2 ? (
-            <div className="list-content">
-              <h2>People</h2>
-              {!contacts.length && <p className="empty-note">No people found.</p>}
-              {contacts.map((person) => (
-                <button className="list-row" key={person.id} onClick={() => void startChat(person)}>
-                  <span className="avatar">{person.name.slice(0, 1).toUpperCase()}</span>
-                  <span className="row-copy">
-                    <strong>{person.name}</strong>
-                    <small>Start a conversation</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="list-content">
-              <h2>Chats</h2>
-              {loadingChats && <p className="empty-note">Loading chats...</p>}
-              {!loadingChats && chats.length === 0 && (
-                <p className="empty-note">No conversations yet. Search for someone to message.</p>
-              )}
-              {chats.map((chat) => (
+          <aside className={`sidebar ${active ? 'sidebar-hidden-mobile' : ''}`}>
+            <header className="sidebar-header">
+              <div className="brand-lockup">
+                <span className="brand-mark small">X</span>
+                <strong>Xolo</strong>
+              </div>
+              <div className="account-tools">
+                <ThemeToggle />
+                <span>{session.user.name}</span>
                 <button
-                  className={`list-row ${activeChatId === chat.id ? 'selected' : ''}`}
-                  key={chat.id}
-                  onClick={() => void openChat(chat)}
+                  className="text-button"
+                  onClick={() => {
+                    localStorage.removeItem('xolo-session')
+                    socket.disconnect()
+                    setSession(null)
+                  }}
                 >
-                  <span className="avatar">{chat.otherUser.name.slice(0, 1).toUpperCase()}</span>
-                  <span className="row-copy">
-                    <strong>{chat.otherUser.name}</strong>
-                    <small>{chat.lastMessage?.body ?? 'Start a conversation'}</small>
-                  </span>
-                  {chat.lastMessage && (
-                    <time>
-                      {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </time>
-                  )}
+                  Log out
                 </button>
-              ))}
+              </div>
+            </header>
+            <div className="search-wrap">
+              <input
+                aria-label="Search people"
+                placeholder="Search people by name or email"
+                value={search}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSearch(value)
+                  if (value.trim().length < 2) setContacts([])
+                }}
+              />
             </div>
-          )}
-        </aside>
-        <ChatWindow
-          title={active?.otherUser.name ?? ''}
-          currentUserId={session.user.id}
-          token={session.token}
-          loading={loadingChatId === activeChatId}
-          onBack={() => {
-            setActive(null)
-            setActiveChat(null)
-          }}
-          onError={setError}
-          error={error}
-        />
+            {search.trim().length >= 2 ? (
+              <div className="list-content">
+                <h2>People</h2>
+                {!contacts.length && <p className="empty-note">No people found.</p>}
+                {contacts.map((person) => (
+                  <button
+                    className="list-row"
+                    key={person.id}
+                    onClick={() => void startChat(person)}
+                  >
+                    <span className="avatar">{person.name.slice(0, 1).toUpperCase()}</span>
+                    <span className="row-copy">
+                      <strong>{person.name}</strong>
+                      <small>Start a conversation</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="list-content">
+                <h2>Chats</h2>
+                {loadingChats && <p className="empty-note">Loading chats...</p>}
+                {!loadingChats && chats.length === 0 && (
+                  <p className="empty-note">No conversations yet. Search for someone to message.</p>
+                )}
+                {chats.map((chat) => (
+                  <button
+                    className={`list-row ${activeChatId === chat.id ? 'selected' : ''}`}
+                    key={chat.id}
+                    onClick={() => void openChat(chat)}
+                  >
+                    <span className="avatar">{chat.otherUser.name.slice(0, 1).toUpperCase()}</span>
+                    <span className="row-copy">
+                      <strong>{chat.otherUser.name}</strong>
+                      <small>{chat.lastMessage?.body ?? 'Start a conversation'}</small>
+                    </span>
+                    {chat.lastMessage && (
+                      <time>
+                        {new Date(chat.lastMessage.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </time>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </aside>
+          <ChatWindow
+            title={active?.otherUser.name ?? ''}
+            currentUserId={session.user.id}
+            token={session.token}
+            loading={loadingChatId === activeChatId}
+            onBack={() => {
+              setActive(null)
+              setActiveChat(null)
+            }}
+            onError={setError}
+            error={error}
+          />
         </section>
       </section>
     </main>
