@@ -15,7 +15,7 @@ function prefersDark(): boolean {
 function readStoredMode(): ThemeMode {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
-    return isThemeMode(stored) ? stored : 'system'
+    return isThemeMode(stored) ? stored : 'dark'
   } catch {
     return 'system'
   }

@@ -233,7 +233,23 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="chat-layout">
+      <section className="terminal-window">
+        <header className="terminal-chrome">
+          <div className="terminal-tabs">
+            <div className="terminal-tab" aria-current="page">
+              <span className="terminal-tab-icon" aria-hidden="true">&gt;_</span>
+              <span>Xolo Chat</span>
+              <span className="terminal-tab-close" aria-hidden="true">×</span>
+            </div>
+            <span className="terminal-tab-add" aria-hidden="true">+</span>
+          </div>
+          <div className="window-controls" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </header>
+        <section className="chat-layout">
         <aside className={`sidebar ${active ? 'sidebar-hidden-mobile' : ''}`}>
           <header className="sidebar-header">
             <div className="brand-lockup">
@@ -324,6 +340,7 @@ function App() {
           onError={setError}
           error={error}
         />
+        </section>
       </section>
     </main>
   )
