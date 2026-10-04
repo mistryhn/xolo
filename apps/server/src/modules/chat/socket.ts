@@ -15,11 +15,22 @@ import { hasTurnServer, iceServers } from '../../config/env.js'
 import { users } from '../../db/schema/users.js'
 type XoloSocket = Socket<ClientToServerEvents, ServerToClientEvents> & { data: { userId: string } }
 
-type ActiveCall = { callId: string; chatId: string; callerId: string; calleeId: string; accepted: boolean; timer: ReturnType<typeof setTimeout> }
+type ActiveCall = {
+  callId: string
+  chatId: string
+  callerId: string
+  calleeId: string
+  accepted: boolean
+  timer: ReturnType<typeof setTimeout>
+}
 const activeCalls = new Map<string, ActiveCall>()
 const callByUser = new Map<string, string>()
 
-function clearCall(io: Server<ClientToServerEvents, ServerToClientEvents>, call: ActiveCall, reason: 'ended' | 'timeout' | 'disconnected') {
+function clearCall(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  call: ActiveCall,
+  reason: 'ended' | 'timeout' | 'disconnected',
+) {
   clearTimeout(call.timer)
   activeCalls.delete(call.callId)
   callByUser.delete(call.callerId)
@@ -31,7 +42,9 @@ function clearCall(io: Server<ClientToServerEvents, ServerToClientEvents>, call:
     callerId: call.callerId,
     calleeId: call.calleeId,
   })
-  io.to(`user:${call.callerId}`).to(`user:${call.calleeId}`).emit('call:ended', { callId: call.callId, chatId: call.chatId, reason })
+  io.to(`user:${call.callerId}`)
+    .to(`user:${call.calleeId}`)
+    .emit('call:ended', { callId: call.callId, chatId: call.chatId, reason })
 }
 
 export function registerChatSocket(
@@ -46,17 +59,36 @@ export function registerChatSocket(
       const [chat] = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1)
       const caller = await participant(chatId, socket.data.userId)
       const recipients = await chatRecipients(chatId, socket.data.userId)
-      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, socket.data.userId)).limit(1)
-      if (!chat || chat.type !== 'private' || !caller || recipients.length !== 1) throw new Error('Video calls are available in private chats only')
+      const [user] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, socket.data.userId))
+        .limit(1)
+      if (!chat || chat.type !== 'private' || !caller || recipients.length !== 1)
+        throw new Error('Video calls are available in private chats only')
       const calleeId = recipients[0]
-      if (callByUser.has(socket.data.userId) || callByUser.has(calleeId)) throw new Error('You or this person is already in a call')
-      if (!(await io.in(`user:${calleeId}`).fetchSockets()).length) throw new Error('This person is offline')
+      if (callByUser.has(socket.data.userId) || callByUser.has(calleeId))
+        throw new Error('You or this person is already in a call')
+      if (!(await io.in(`user:${calleeId}`).fetchSockets()).length)
+        throw new Error('This person is offline')
       const callId = randomUUID()
-      const call = { callId, chatId, callerId: socket.data.userId, calleeId, accepted: false, timer: setTimeout(() => clearCall(io, call, 'timeout'), 30_000) }
+      const call = {
+        callId,
+        chatId,
+        callerId: socket.data.userId,
+        calleeId,
+        accepted: false,
+        timer: setTimeout(() => clearCall(io, call, 'timeout'), 30_000),
+      }
       activeCalls.set(callId, call)
       callByUser.set(call.callerId, callId)
       callByUser.set(call.calleeId, callId)
-      io.to(`user:${calleeId}`).emit('call:incoming', { callId, chatId, fromUserId: caller.userId, fromName: user?.name ?? caller.alias })
+      io.to(`user:${calleeId}`).emit('call:incoming', {
+        callId,
+        chatId,
+        fromUserId: caller.userId,
+        fromName: user?.name ?? caller.alias,
+      })
       console.info('[call] invited', { callId, chatId, callerId: call.callerId, calleeId })
       ack({ callId })
     } catch (e) {
@@ -65,7 +97,8 @@ export function registerChatSocket(
   })
   socket.on('call:accept', async ({ callId }, ack) => {
     const call = activeCalls.get(callId)
-    if (!call || call.calleeId !== socket.data.userId) return ack({ error: 'This call is no longer available' })
+    if (!call || call.calleeId !== socket.data.userId)
+      return ack({ error: 'This call is no longer available' })
     if (call.accepted) return ack({ error: 'This call was already answered on another device' })
     call.accepted = true
     clearTimeout(call.timer)
@@ -78,13 +111,22 @@ export function registerChatSocket(
     const call = activeCalls.get(callId)
     if (!call || call.calleeId !== socket.data.userId) return
     clearTimeout(call.timer)
-    activeCalls.delete(callId); callByUser.delete(call.callerId); callByUser.delete(call.calleeId)
-    io.to(`user:${call.callerId}`).to(`user:${call.calleeId}`).emit('call:declined', { callId, chatId: call.chatId })
+    activeCalls.delete(callId)
+    callByUser.delete(call.callerId)
+    callByUser.delete(call.calleeId)
+    io.to(`user:${call.callerId}`)
+      .to(`user:${call.calleeId}`)
+      .emit('call:declined', { callId, chatId: call.chatId })
   })
   const finishCall = (callId: string, userId: string, reason: 'ended' | 'disconnected') => {
     const call = activeCalls.get(callId)
     if (call && (call.callerId === userId || call.calleeId === userId)) {
-      console.info('[call] termination requested', { callId, userId, reason, accepted: call.accepted })
+      console.info('[call] termination requested', {
+        callId,
+        userId,
+        reason,
+        accepted: call.accepted,
+      })
       clearCall(io, call, reason)
     }
   }
@@ -92,11 +134,18 @@ export function registerChatSocket(
   socket.on('call:end', ({ callId }) => finishCall(callId, socket.data.userId, 'ended'))
   socket.on('call:signal', ({ callId, description, candidate }) => {
     const call = activeCalls.get(callId)
-    if (!call || (call.callerId !== socket.data.userId && call.calleeId !== socket.data.userId)) return
+    if (!call || (call.callerId !== socket.data.userId && call.calleeId !== socket.data.userId))
+      return
     if (!description && !candidate) return
     const to = call.callerId === socket.data.userId ? call.calleeId : call.callerId
     if (description) console.info('[call] description relayed', { callId, type: description.type })
-    io.to(`user:${to}`).emit('call:signal', { callId, chatId: call.chatId, fromUserId: socket.data.userId, ...(description ? { description } : {}), ...(candidate ? { candidate } : {}) })
+    io.to(`user:${to}`).emit('call:signal', {
+      callId,
+      chatId: call.chatId,
+      fromUserId: socket.data.userId,
+      ...(description ? { description } : {}),
+      ...(candidate ? { candidate } : {}),
+    })
   })
   socket.on('disconnect', () => {
     const callId = callByUser.get(socket.data.userId)
@@ -107,9 +156,12 @@ export function registerChatSocket(
       accepted: activeCalls.get(callId)?.accepted ?? false,
     })
     // Keep the call alive while another authenticated tab for this user remains connected.
-    void io.in(`user:${socket.data.userId}`).fetchSockets().then((sockets) => {
-      if (!sockets.length) finishCall(callId, socket.data.userId, 'disconnected')
-    })
+    void io
+      .in(`user:${socket.data.userId}`)
+      .fetchSockets()
+      .then((sockets) => {
+        if (!sockets.length) finishCall(callId, socket.data.userId, 'disconnected')
+      })
   })
   socket.on('chat:join', async ({ chatId }, ack) => {
     try {

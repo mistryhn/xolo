@@ -52,9 +52,21 @@ export function ChatWindow({
         </button>
         <span className="avatar">{title.slice(0, 1).toUpperCase()}</span>
         <strong>{title}</strong>
-        <button className="video-call-button" disabled={!activeChatId || !!call} onClick={() => activeChatId && startCall(activeChatId, title)} aria-label="Start video call" title="Start video call">◉ <span>Video call</span></button>
+        <button
+          className="video-call-button"
+          disabled={!activeChatId || !!call}
+          onClick={() => activeChatId && startCall(activeChatId, title)}
+          aria-label="Start video call"
+          title="Start video call"
+        >
+          ◉ <span>Video call</span>
+        </button>
       </header>
-      {busyMessage && <p className="chat-error" role="alert">{busyMessage}</p>}
+      {busyMessage && (
+        <p className="chat-error" role="alert">
+          {busyMessage}
+        </p>
+      )}
       <div className="message-list">
         {loading && messages.length === 0 && <p className="thread-note">Loading messages...</p>}
         {!loading && messages.length === 0 && (

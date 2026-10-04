@@ -408,7 +408,10 @@ export function VideoCallProvider({ children }: { children: ReactNode }) {
       console.info('[call] sending acceptance', { callId: current.callId })
       socket.emit('call:accept', { callId: current.callId }, (result) => {
         if ('error' in result) {
-          console.warn('[call] acceptance rejected', { callId: current.callId, error: result.error })
+          console.warn('[call] acceptance rejected', {
+            callId: current.callId,
+            error: result.error,
+          })
           endLocal(result.error)
         }
       })
@@ -511,16 +514,19 @@ export function VideoCallProvider({ children }: { children: ReactNode }) {
 
   // Keep call ownership separate from listener subscription cleanup. If the
   // listener effect ever needs to resubscribe, that must not end an active call.
-  useEffect(() => () => {
-    const current = callRef.current
-    if (current && current.status !== 'ended') {
-      console.info('[call] provider unmounted; ending call', { callId: current.callId })
-      socket.emit(current.status === 'outgoing' ? 'call:cancel' : 'call:end', {
-        callId: current.callId,
-      })
-    }
-    releaseMedia()
-  }, [releaseMedia])
+  useEffect(
+    () => () => {
+      const current = callRef.current
+      if (current && current.status !== 'ended') {
+        console.info('[call] provider unmounted; ending call', { callId: current.callId })
+        socket.emit(current.status === 'outgoing' ? 'call:cancel' : 'call:end', {
+          callId: current.callId,
+        })
+      }
+      releaseMedia()
+    },
+    [releaseMedia],
+  )
 
   const toggleAudio = () => {
     const enabled = !audioEnabled

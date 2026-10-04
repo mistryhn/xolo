@@ -14,11 +14,17 @@ const envSchema = z.object({
 })
 
 export const env = envSchema.parse(process.env)
-export const iceServers = z.array(z.object({
-  urls: z.union([z.string(), z.array(z.string())]),
-  username: z.string().optional(),
-  credential: z.string().optional(),
-})).parse(JSON.parse(env.ICE_SERVERS))
+export const iceServers = z
+  .array(
+    z.object({
+      urls: z.union([z.string(), z.array(z.string())]),
+      username: z.string().optional(),
+      credential: z.string().optional(),
+    }),
+  )
+  .parse(JSON.parse(env.ICE_SERVERS))
 export const hasTurnServer = iceServers.some((server) =>
-  (Array.isArray(server.urls) ? server.urls : [server.urls]).some((url) => /^(turn|turns):/i.test(url)),
+  (Array.isArray(server.urls) ? server.urls : [server.urls]).some((url) =>
+    /^(turn|turns):/i.test(url),
+  ),
 )
