@@ -1,4 +1,15 @@
 export type ServerToClientEvents = {
+  'call:incoming': (data: { callId: string; chatId: string; fromUserId: string; fromName: string }) => void
+  'call:accepted': (data: { callId: string; chatId: string }) => void
+  'call:declined': (data: { callId: string; chatId: string }) => void
+  'call:ended': (data: { callId: string; chatId: string; reason: 'ended' | 'timeout' | 'disconnected' }) => void
+  'call:signal': (data: {
+    callId: string
+    chatId: string
+    fromUserId: string
+    description?: { type: 'offer' | 'answer'; sdp: string }
+    candidate?: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null; usernameFragment?: string | null }
+  }) => void
   'chat:message': (data: {
     id: string
     chatId: string
@@ -20,6 +31,17 @@ export type ServerToClientEvents = {
   'error:message': (data: { code: string; message: string }) => void
 }
 export type ClientToServerEvents = {
+  'call:ice-config': (ack: (result: { iceServers: IceServer[]; hasTurnServer: boolean }) => void) => void
+  'call:invite': (data: { chatId: string }, ack: (result: { callId: string } | { error: string }) => void) => void
+  'call:accept': (data: { callId: string }, ack: (result: { ok: true } | { error: string }) => void) => void
+  'call:decline': (data: { callId: string }) => void
+  'call:cancel': (data: { callId: string }) => void
+  'call:end': (data: { callId: string }) => void
+  'call:signal': (data: {
+    callId: string
+    description?: { type: 'offer' | 'answer'; sdp: string }
+    candidate?: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null; usernameFragment?: string | null }
+  }) => void
   'chat:join': (
     data: { chatId: string },
     ack: (result: { alias: string } | { error: string }) => void,
@@ -38,3 +60,5 @@ export type ClientToServerEvents = {
     ack: (result: { ok: true } | { error: string }) => void,
   ) => void
 }
+
+export type IceServer = { urls: string | string[]; username?: string; credential?: string }

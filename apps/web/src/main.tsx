@@ -5,6 +5,7 @@ import { socket, connectSocket } from './lib/socket'
 import { useChatStore, type Message } from './store/chatStore'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { ThemeToggle } from './theme/ThemeToggle'
+import { VideoCallOverlay, VideoCallProvider } from './features/chat/useVideoCall'
 import './styles.css'
 
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
@@ -232,6 +233,7 @@ function App() {
     )
 
   return (
+    <VideoCallProvider>
     <main className="app-shell">
       <section className="terminal-window">
         <header className="terminal-chrome">
@@ -352,7 +354,9 @@ function App() {
           />
         </section>
       </section>
+      <VideoCallOverlay />
     </main>
+    </VideoCallProvider>
   )
 }
 

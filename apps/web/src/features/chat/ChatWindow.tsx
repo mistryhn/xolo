@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useChatStore } from '../../store/chatStore'
+import { useVideoCall } from './useVideoCall'
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export function ChatWindow({
@@ -20,6 +21,7 @@ export function ChatWindow({
   error: string
 }) {
   const { activeChatId, messages, add, applyReaction } = useChatStore()
+  const { startCall, call, busyMessage } = useVideoCall()
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const bottom = useRef<HTMLDivElement>(null)
@@ -50,7 +52,9 @@ export function ChatWindow({
         </button>
         <span className="avatar">{title.slice(0, 1).toUpperCase()}</span>
         <strong>{title}</strong>
+        <button className="video-call-button" disabled={!activeChatId || !!call} onClick={() => activeChatId && startCall(activeChatId, title)} aria-label="Start video call" title="Start video call">◉ <span>Video call</span></button>
       </header>
+      {busyMessage && <p className="chat-error" role="alert">{busyMessage}</p>}
       <div className="message-list">
         {loading && messages.length === 0 && <p className="thread-note">Loading messages...</p>}
         {!loading && messages.length === 0 && (

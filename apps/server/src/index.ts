@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
-import { env } from './config/env.js'
+import { env, hasTurnServer } from './config/env.js'
 import { registerErrorHandler } from './plugins/error-handler.js'
 import { authRoutes } from './modules/auth/routes.js'
 import { chatRoutes } from './modules/chat/routes.js'
@@ -27,6 +27,8 @@ declare module '@fastify/jwt' {
 }
 
 const app = Fastify({ logger: true })
+if (!hasTurnServer)
+  app.log.warn('ICE_SERVERS has no TURN relay; video calls may fail across restrictive networks')
 await app.register(cors, { origin: env.WEB_ORIGIN })
 await app.register(jwt, { secret: env.JWT_SECRET })
 
