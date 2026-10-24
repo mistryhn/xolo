@@ -114,10 +114,25 @@ button {
 }
 
 .app-shell {
+  position: relative;
   width: 100%;
   height: 100dvh;
   padding: clamp(8px, 2.4vw, 30px);
   background: var(--bg);
+}
+.connection-banner {
+  position: absolute;
+  top: clamp(8px, 2.4vw, 30px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 12px;
+  box-shadow: 0 10px 40px var(--shadow-raised);
 }
 .terminal-window {
   display: flex;

@@ -12,10 +12,11 @@ const typingKey = (chatId: string, userId: string) => `typing:${chatId}:${userId
 
 export async function markOnline(userId: string, socketId: string) {
   const key = socketsKey(userId)
+  const before = await redis.sCard(key)
   await redis.sAdd(key, socketId)
-  const sockets = await redis.sCard(key)
+  const after = await redis.sCard(key)
   await redis.expire(key, PRESENCE_TTL_SECONDS)
-  return sockets === 1
+  return before === 0 && after >= 1
 }
 
 export async function refreshPresence(userId: string, socketId: string) {
@@ -40,8 +41,17 @@ export async function markOffline(userId: string, socketId: string) {
 
 export async function getOnlineStates(userIds: string[]) {
   if (!userIds.length) return new Map<string, boolean>()
-  const results = await Promise.all(userIds.map((userId) => redis.exists(socketsKey(userId))))
-  return new Map(userIds.map((userId, index) => [userId, results[index] === 1]))
+  const results = await Promise.all(
+    userIds.map(async (userId) => {
+      const count = await redis.sCard(socketsKey(userId))
+      if (count === 0) {
+        await redis.del(socketsKey(userId))
+        return false
+      }
+      return true
+    }),
+  )
+  return new Map(userIds.map((userId, index) => [userId, results[index]]))
 }
 
 export async function presenceRecipients(userId: string) {

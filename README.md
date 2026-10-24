@@ -1,22 +1,100 @@
 # Xolo
 
-Simple one-to-one, real-time chat built as a pnpm monorepo. Users create an account, search for another user, and message them directly. Conversations and messages are saved so people can return to them later.
+Xolo is a full-stack realtime chat application with video calls, presence, typing indicators, and resilient networking for slow/unstable connections.
 
-## Local setup
+## Features
 
-1. Copy `.env.example` to `.env` and set a secure `JWT_SECRET`. Keep `DATABASE_URL` aligned with the PostgreSQL credentials in `docker-compose.yml`.
-2. Run `docker compose up -d` to start PostgreSQL.
-3. Run `pnpm install` and `pnpm db:migrate`.
-4. Run `pnpm dev` and open `http://localhost:5173`.
+- **Realtime Messaging** - Instant messaging between users via Socket.IO with message deduplication
+- **Online/Offline Status** - See when users are online (green dot) or when they were last seen
+- **Typing Indicators** - Know when the other person is typing with real-time updates
+- **Message Date Separators** - Messages grouped by Today/Yesterday/specific dates
+- **Video Calls** - WebRTC-powered peer-to-peer video calls with ICE/STUN/TURN support
+- **Reactions** - React to messages with emojis
+- **Dark/Light Theme** - Toggle between themes
+- **Secure Auth** - JWT-based authentication with Argon2 password hashing
 
-The server runs on port 3000 and the web client on port 5173.
+## Slow Network Resilience
 
-## Video call networking
+- **Socket Reconnection** - Auto-reconnect with exponential backoff (infinite attempts)
+- **Connection Awareness** - UI banner shows offline/reconnecting status
+- **Message Queuing** - Messages sent while offline are queued and auto-sent on reconnect
+- **Request Timeouts & Retries** - HTTP requests have timeouts with retry logic for 5xx errors
+- **Room Resync** - On reconnect, automatically rejoin rooms and refresh data
+- **Presence Grace Period** - Delayed offline marking prevents false offline status on transient drops
+- **Typing Resilience** - Client-side timeouts clear stale typing indicators
 
-Video calls use WebRTC. The example `ICE_SERVERS` setting contains public STUN only and is suitable for local development, but it cannot relay media when direct peer connections are blocked. For deployed use, configure your managed TURN provider's ICE server URLs, username, and credential in the server's `ICE_SERVERS` environment variable as JSON. Keep TURN credentials in the server environment; the authenticated server returns them only to call participants. The web client logs call and ICE state changes, plus the selected candidate types, without logging addresses, SDP, or candidate strings.
+## Tech Stack
 
-For example, set the server environment variable to the provider's values (replace the example host and credentials):
+- **Frontend**: React 19, TypeScript, Vite, Zustand, Socket.IO Client
+- **Backend**: Fastify, TypeScript, Socket.IO, Drizzle ORM
+- **Database**: PostgreSQL
+- **Cache/Realtime**: Redis (for presence, typing, Socket.IO adapter)
+- **Protocol**: Shared types/schemas in `@xolo/protocol`
 
-```dotenv
-ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"},{"urls":["turn:turn.provider.example:3478?transport=udp","turns:turn.provider.example:5349?transport=tcp"],"username":"<provider-username>","credential":"<provider-credential>"}]
+## Prerequisites
+
+- Node.js 18+
+- pnpm 9+
+- PostgreSQL
+- Redis
+
+## Getting Started
+
+1. **Clone and install dependencies**
+```bash
+git clone <repo-url>
+cd xolo
+pnpm install
 ```
+
+2. **Configure environment**
+```bash
+cp .env.example .env
+# Edit .env with your database/redis/JWT settings
+```
+
+3. **Start databases**
+```bash
+docker compose up -d
+```
+
+4. **Run migrations**
+```bash
+pnpm db:migrate
+```
+
+5. **Start development servers**
+```bash
+pnpm dev
+```
+
+The web app runs on `http://localhost:5173` and the API on `http://localhost:3000`.
+
+## Environment Variables
+
+See `.env.example` for all configuration options including:
+- Database connection
+- Redis URL
+- JWT secret
+- Web origin
+- ICE servers for WebRTC (STUN/TURN)
+
+## Testing on Slow Networks
+
+Chrome DevTools → Network → Throttling to test:
+- Slow 3G / Fast 3G
+- Offline mode (messages queue and send on reconnect)
+- Connection drops mid-call
+
+## Scripts
+
+- `pnpm dev` - Start both web and server in dev mode
+- `pnpm build` - Build all packages
+- `pnpm typecheck` - Type check all packages
+- `pnpm lint` - Lint with ESLint
+- `pnpm db:generate` - Generate migrations
+- `pnpm db:migrate` - Run migrations
+
+## License
+
+MIT

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ChatWindow } from './features/chat/ChatWindow'
 import { socket, connectSocket } from './lib/socket'
+import { fetchWithRetry } from './lib/fetchWithRetry'
+import { getQueue, removeFromQueue } from './lib/messageQueue'
 import { useChatStore, type Message } from './store/chatStore'
 import { usePresenceStore } from './store/presenceStore'
 import type { PresenceState } from '@xolo/protocol'
@@ -34,15 +36,58 @@ function App() {
   const [active, setActive] = useState<Conversation | null>(null)
   const [loadingChats, setLoadingChats] = useState(false)
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null)
+  const [connectionState, setConnectionState] = useState<'online' | 'connecting' | 'offline'>(
+    'connecting',
+  )
   const { activeChatId, setActive: setActiveChat, add, applyReaction } = useChatStore()
   const { setPresence, setTyping } = usePresenceStore()
+  const flushingQueue = useRef(false)
+
+  const flushMessageQueue = useCallback(
+    async (token: string) => {
+      if (flushingQueue.current) return
+      flushingQueue.current = true
+      try {
+        const queue = getQueue()
+        if (!queue.length) return
+        for (const item of queue) {
+          try {
+            const response = await fetchWithRetry(`${api}/api/chats/${item.chatId}/messages`, {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ body: item.body, clientId: item.clientId }),
+              timeout: 15000,
+              retries: 1,
+            })
+            const json = await response.json()
+            if (response.ok && json.data) {
+              add({ ...json.data, createdAt: new Date(json.data.createdAt).toISOString() })
+              removeFromQueue(item.id)
+            } else if (!response.ok) {
+              break
+            }
+          } catch {
+            break
+          }
+        }
+      } finally {
+        flushingQueue.current = false
+      }
+    },
+    [add],
+  )
 
   const refreshChats = useCallback(
     async (token: string) => {
       setLoadingChats(true)
       try {
-        const response = await fetch(`${api}/api/chats`, {
+        const response = await fetchWithRetry(`${api}/api/chats`, {
           headers: { authorization: `Bearer ${token}` },
+          timeout: 10000,
+          retries: 1,
         })
         const json = await response.json()
         if (response.ok) {
@@ -53,6 +98,8 @@ function App() {
             socket.emit('chat:join', { chatId: chat.id }, () => {})
           })
         }
+      } catch {
+        // keep existing chats on failure
       } finally {
         setLoadingChats(false)
       }
@@ -86,12 +133,33 @@ function App() {
       setPresence(data.userId, { online: data.online, lastSeenAt: data.lastSeenAt })
     const receiveTyping = (data: { chatId: string; userId: string; typing: boolean }) =>
       setTyping(data.chatId, data.userId, data.typing)
+    const onConnect = () => {
+      setConnectionState('online')
+      void refreshChats(session.token)
+      void flushMessageQueue(session.token)
+      setChats((items) => {
+        items.forEach((chat) => socket.emit('chat:join', { chatId: chat.id }, () => {}))
+        return items
+      })
+    }
+    const onDisconnect = () => setConnectionState('connecting')
+    const onConnectError = () => setConnectionState('offline')
+    const onReconnect = () => setConnectionState('online')
+    const updateNetwork = () => setConnectionState(navigator.onLine ? 'online' : 'offline')
     socket.on('chat:message', receiveMessage)
     socket.on('chat:reaction', receiveReaction)
     socket.on('chat:available', onChatAvailable)
     socket.on('presence:update', receivePresence)
     socket.on('typing:update', receiveTyping)
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+    socket.on('connect_error', onConnectError)
+    socket.io.on('reconnect', onReconnect)
+    window.addEventListener('online', updateNetwork)
+    window.addEventListener('offline', updateNetwork)
+    updateNetwork()
     const initialRefresh = window.setTimeout(() => void refreshChats(session.token), 0)
+    void flushMessageQueue(session.token)
     return () => {
       window.clearTimeout(initialRefresh)
       socket.off('chat:message', receiveMessage)
@@ -99,9 +167,15 @@ function App() {
       socket.off('chat:available', onChatAvailable)
       socket.off('presence:update', receivePresence)
       socket.off('typing:update', receiveTyping)
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+      socket.off('connect_error', onConnectError)
+      socket.io.off('reconnect', onReconnect)
+      window.removeEventListener('online', updateNetwork)
+      window.removeEventListener('offline', updateNetwork)
       socket.disconnect()
     }
-  }, [session, add, applyReaction, refreshChats, setPresence, setTyping])
+  }, [session, add, applyReaction, refreshChats, setPresence, setTyping, flushMessageQueue])
 
   useEffect(() => {
     const query = search.trim()
@@ -272,6 +346,13 @@ function App() {
   return (
     <VideoCallProvider>
       <main className="app-shell">
+        {(connectionState === 'connecting' || connectionState === 'offline') && (
+          <div className="connection-banner" role="status">
+            {connectionState === 'offline'
+              ? 'Offline. Messages will be queued until reconnected.'
+              : 'Reconnecting…'}
+          </div>
+        )}
         <section className="terminal-window">
           <header className="terminal-chrome">
             <div className="terminal-tabs">

@@ -3,6 +3,8 @@ import { useChatStore } from '../../store/chatStore'
 import { usePresenceStore } from '../../store/presenceStore'
 import { formatLastSeen, formatMessageDay, isSameDay } from '../../lib/dates'
 import { socket } from '../../lib/socket'
+import { fetchWithRetry } from '../../lib/fetchWithRetry'
+import { enqueueMessage } from '../../lib/messageQueue'
 import { useVideoCall } from './useVideoCall'
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -212,14 +214,19 @@ export function ChatWindow({
           stopTyping()
           setSending(true)
           try {
-            const response = await fetch(`${api}/api/chats/${activeChatId}/messages`, {
-              method: 'POST',
-              headers: {
-                'content-type': 'application/json',
-                authorization: `Bearer ${token}`,
+            const response = await fetchWithRetry(
+              `${api}/api/chats/${activeChatId}/messages`,
+              {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                  authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ body: text, clientId }),
+                timeout: 15000,
+                retries: 1,
               },
-              body: JSON.stringify({ body: text, clientId }),
-            })
+            )
             const json = await response.json()
             if (!response.ok) throw new Error(json.error?.message ?? 'Could not send message')
             if (json.data)
@@ -227,7 +234,13 @@ export function ChatWindow({
             setBody('')
             onError('')
           } catch (cause) {
-            onError(cause instanceof Error ? cause.message : 'Could not send message')
+            if (!navigator.onLine || !socket.connected) {
+              enqueueMessage({ chatId: activeChatId, body: text, clientId, token })
+              onError('Message queued. It will send when connection is restored.')
+              setBody('')
+            } else {
+              onError(cause instanceof Error ? cause.message : 'Could not send message')
+            }
           } finally {
             setSending(false)
           }
