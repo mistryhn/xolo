@@ -10,6 +10,7 @@ import {
 import { users } from '../../db/schema/users.js'
 import { db } from '../../db/drizzle.js'
 import { addMessage, createChat, joinChat, participant, toggleReaction } from './service.js'
+import { getOnlineStates } from '../presence/service.js'
 
 export async function chatRoutes(app: FastifyInstance) {
   app.get('/contacts', { onRequest: [app.authenticate] }, async (request) => {
@@ -17,18 +18,26 @@ export async function chatRoutes(app: FastifyInstance) {
     const query = search.trim()
     if (!query) return { data: [] }
     const pattern = `%${query.replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+    const people = await db
+      .select({ id: users.id, name: users.name, lastSeenAt: users.lastSeenAt })
+      .from(users)
+      .where(
+        and(
+          ne(users.id, request.user.sub),
+          or(ilike(users.name, pattern), ilike(users.email, pattern)),
+        ),
+      )
+      .orderBy(users.name)
+      .limit(30)
+    const onlineStates = await getOnlineStates(people.map((person) => person.id))
     return {
-      data: await db
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .where(
-          and(
-            ne(users.id, request.user.sub),
-            or(ilike(users.name, pattern), ilike(users.email, pattern)),
-          ),
-        )
-        .orderBy(users.name)
-        .limit(30),
+      data: people.map(({ lastSeenAt, ...person }) => ({
+        ...person,
+        presence: {
+          online: onlineStates.get(person.id) ?? false,
+          lastSeenAt: lastSeenAt?.toISOString() ?? null,
+        },
+      })),
     }
   })
 
@@ -47,10 +56,16 @@ export async function chatRoutes(app: FastifyInstance) {
     if (!chatRows.length) return { data: [] }
     const chatIds = chatRows.map((chat) => chat.id)
     const members = await db
-      .select({ chatId: chatParticipants.chatId, userId: users.id, name: users.name })
+      .select({
+        chatId: chatParticipants.chatId,
+        userId: users.id,
+        name: users.name,
+        lastSeenAt: users.lastSeenAt,
+      })
       .from(chatParticipants)
       .innerJoin(users, eq(users.id, chatParticipants.userId))
       .where(and(inArray(chatParticipants.chatId, chatIds), isNull(chatParticipants.leftAt)))
+    const onlineStates = await getOnlineStates([...new Set(members.map((member) => member.userId))])
     const latestMessages = await db
       .select()
       .from(messages)
@@ -70,7 +85,14 @@ export async function chatRoutes(app: FastifyInstance) {
         return [
           {
             ...chat,
-            otherUser: { id: other.userId, name: other.name },
+            otherUser: {
+              id: other.userId,
+              name: other.name,
+              presence: {
+                online: onlineStates.get(other.userId) ?? false,
+                lastSeenAt: other.lastSeenAt?.toISOString() ?? null,
+              },
+            },
             lastMessage: lastMessage
               ? { body: lastMessage.body, createdAt: lastMessage.createdAt }
               : null,
@@ -83,10 +105,18 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post('/', { onRequest: [app.authenticate] }, async (request, reply) => {
     const { recipientId } = createChatSchema.parse(request.body)
     const result = await createChat(request.user.sub, recipientId)
+    const onlineStates = await getOnlineStates([result.recipient.id])
     return reply.status(201).send({
       data: {
         ...result.chat,
-        otherUser: { id: result.recipient.id, name: result.recipient.name },
+        otherUser: {
+          id: result.recipient.id,
+          name: result.recipient.name,
+          presence: {
+            online: onlineStates.get(result.recipient.id) ?? false,
+            lastSeenAt: result.recipient.lastSeenAt?.toISOString() ?? null,
+          },
+        },
       },
     })
   })

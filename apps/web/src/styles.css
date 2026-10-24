@@ -35,6 +35,8 @@
   --accent-strong: #1769aa;
   --avatar-bg: #dce8f4;
   --avatar-text: #24577f;
+  --presence-online: #2f9e62;
+  --presence-offline: #8993a1;
   --shadow-raised: #202a3817;
   --shadow-ambient: #202a3810;
   --shadow-bubble: #202a3812;
@@ -87,6 +89,8 @@
   --accent-strong: #459be4;
   --avatar-bg: #202c3a;
   --avatar-text: #9bcbf4;
+  --presence-online: #46c27f;
+  --presence-offline: #77808d;
   --shadow-raised: #00000080;
   --shadow-ambient: #00000059;
   --shadow-bubble: #00000000;
@@ -532,6 +536,40 @@ button {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.conversation-identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.conversation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-status.typing {
+  color: var(--text-accent);
+  font-style: italic;
+}
+.presence-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--presence-offline);
+}
+.conversation-status.online .presence-dot,
+.conversation-status.typing .presence-dot {
+  background: var(--presence-online);
+}
+.conversation-status.typing .presence-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--presence-online) 20%, transparent);
 }
 .back-button {
   display: none;

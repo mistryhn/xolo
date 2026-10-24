@@ -7,6 +7,7 @@ import { authRoutes } from './modules/auth/routes.js'
 import { chatRoutes } from './modules/chat/routes.js'
 import { attachSockets } from './sockets/index.js'
 import { pool } from './db/drizzle.js'
+import { connectRedis, disconnectRedis } from './redis/client.js'
 import type { Server as SocketServer } from 'socket.io'
 import type { ClientToServerEvents, ServerToClientEvents } from '@xolo/protocol'
 
@@ -37,10 +38,12 @@ app.decorate('authenticate', async (request) => {
 })
 
 registerErrorHandler(app)
-app.decorate('io', attachSockets(app))
+await connectRedis()
+app.decorate('io', await attachSockets(app))
 await app.register(authRoutes, { prefix: '/api/auth' })
 await app.register(chatRoutes, { prefix: '/api/chats' })
 app.addHook('onClose', async () => {
   await pool.end()
+  await disconnectRedis()
 })
 await app.listen({ port: env.SERVER_PORT, host: '0.0.0.0' })

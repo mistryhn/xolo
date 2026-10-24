@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { ChatWindow } from './features/chat/ChatWindow'
 import { socket, connectSocket } from './lib/socket'
 import { useChatStore, type Message } from './store/chatStore'
+import { usePresenceStore } from './store/presenceStore'
+import type { PresenceState } from '@xolo/protocol'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { ThemeToggle } from './theme/ThemeToggle'
 import { VideoCallOverlay, VideoCallProvider } from './features/chat/useVideoCall'
@@ -11,11 +13,11 @@ import './styles.css'
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 type Session = { token: string; user: { id: string; name: string; email: string } }
-type Person = { id: string; name: string }
+type Person = { id: string; name: string; presence?: PresenceState }
 type Conversation = {
   id: string
   createdAt: string
-  otherUser: Person
+  otherUser: Person & { presence: PresenceState }
   lastMessage: { body: string; createdAt: string } | null
 }
 
@@ -33,23 +35,30 @@ function App() {
   const [loadingChats, setLoadingChats] = useState(false)
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null)
   const { activeChatId, setActive: setActiveChat, add, applyReaction } = useChatStore()
+  const { setPresence, setTyping } = usePresenceStore()
 
-  const refreshChats = useCallback(async (token: string) => {
-    setLoadingChats(true)
-    try {
-      const response = await fetch(`${api}/api/chats`, {
-        headers: { authorization: `Bearer ${token}` },
-      })
-      const json = await response.json()
-      if (response.ok) {
-        const conversations: Conversation[] = json.data ?? []
-        setChats(conversations)
-        conversations.forEach((chat) => socket.emit('chat:join', { chatId: chat.id }, () => {}))
+  const refreshChats = useCallback(
+    async (token: string) => {
+      setLoadingChats(true)
+      try {
+        const response = await fetch(`${api}/api/chats`, {
+          headers: { authorization: `Bearer ${token}` },
+        })
+        const json = await response.json()
+        if (response.ok) {
+          const conversations: Conversation[] = json.data ?? []
+          setChats(conversations)
+          conversations.forEach((chat) => {
+            setPresence(chat.otherUser.id, chat.otherUser.presence)
+            socket.emit('chat:join', { chatId: chat.id }, () => {})
+          })
+        }
+      } finally {
+        setLoadingChats(false)
       }
-    } finally {
-      setLoadingChats(false)
-    }
-  }, [])
+    },
+    [setPresence],
+  )
 
   useEffect(() => {
     if (!session) return
@@ -73,18 +82,26 @@ function App() {
     const onChatAvailable = () => void refreshChats(session.token)
     const receiveReaction = (reaction: Parameters<typeof applyReaction>[0]) =>
       applyReaction(reaction, session.user.id)
+    const receivePresence = (data: { userId: string } & PresenceState) =>
+      setPresence(data.userId, { online: data.online, lastSeenAt: data.lastSeenAt })
+    const receiveTyping = (data: { chatId: string; userId: string; typing: boolean }) =>
+      setTyping(data.chatId, data.userId, data.typing)
     socket.on('chat:message', receiveMessage)
     socket.on('chat:reaction', receiveReaction)
     socket.on('chat:available', onChatAvailable)
+    socket.on('presence:update', receivePresence)
+    socket.on('typing:update', receiveTyping)
     const initialRefresh = window.setTimeout(() => void refreshChats(session.token), 0)
     return () => {
       window.clearTimeout(initialRefresh)
       socket.off('chat:message', receiveMessage)
       socket.off('chat:reaction', receiveReaction)
       socket.off('chat:available', onChatAvailable)
+      socket.off('presence:update', receivePresence)
+      socket.off('typing:update', receiveTyping)
       socket.disconnect()
     }
-  }, [session, add, applyReaction, refreshChats])
+  }, [session, add, applyReaction, refreshChats, setPresence, setTyping])
 
   useEffect(() => {
     const query = search.trim()
@@ -95,10 +112,16 @@ function App() {
         { headers: { authorization: `Bearer ${session.token}` } },
       )
       const json = await response.json()
-      if (response.ok) setContacts(json.data ?? [])
+      if (response.ok) {
+        const people: Person[] = json.data ?? []
+        setContacts(people)
+        people.forEach((person) => {
+          if (person.presence) setPresence(person.id, person.presence)
+        })
+      }
     }, 200)
     return () => window.clearTimeout(timer)
-  }, [search, session])
+  }, [search, session, setPresence])
 
   async function auth(e: React.FormEvent) {
     e.preventDefault()
@@ -124,6 +147,7 @@ function App() {
     setError('')
     setActive(conversation)
     setActiveChat(conversation.id)
+    setPresence(conversation.otherUser.id, conversation.otherUser.presence)
     setLoadingChatId(conversation.id)
     void (async () => {
       try {
@@ -164,7 +188,14 @@ function App() {
       const conversation: Conversation = {
         id: json.data.id,
         createdAt: json.data.createdAt,
-        otherUser: json.data.otherUser ?? person,
+        otherUser: {
+          id: json.data.otherUser?.id ?? person.id,
+          name: json.data.otherUser?.name ?? person.name,
+          presence: json.data.otherUser?.presence ?? {
+            online: false,
+            lastSeenAt: null,
+          },
+        },
         lastMessage: null,
       }
       setSearch('')
@@ -173,8 +204,14 @@ function App() {
         headers: { authorization: `Bearer ${session!.token}` },
       })
       const chatData = await refreshed.json()
-      if (refreshed.ok) setChats(chatData.data ?? [])
-      await openChat(conversation)
+      if (refreshed.ok) {
+        const conversations: Conversation[] = chatData.data ?? []
+        setChats(conversations)
+        conversations.forEach((chat) => setPresence(chat.otherUser.id, chat.otherUser.presence))
+        await openChat(conversations.find((chat) => chat.id === conversation.id) ?? conversation)
+      } else {
+        await openChat(conversation)
+      }
     } catch {
       setError('Could not connect to Xolo. Check that the server is running.')
     }
@@ -346,6 +383,7 @@ function App() {
             </aside>
             <ChatWindow
               title={active?.otherUser.name ?? ''}
+              otherUserId={active?.otherUser.id ?? ''}
               currentUserId={session.user.id}
               token={session.token}
               loading={loadingChatId === activeChatId}

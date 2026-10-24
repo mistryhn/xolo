@@ -1,3 +1,5 @@
+export type PresenceState = { online: boolean; lastSeenAt: string | null }
+
 export type ServerToClientEvents = {
   'call:incoming': (data: {
     callId: string
@@ -42,6 +44,8 @@ export type ServerToClientEvents = {
   }) => void
   'chat:participant': (data: { chatId: string; alias: string; action: 'joined' | 'left' }) => void
   'chat:available': () => void
+  'presence:update': (data: { userId: string } & PresenceState) => void
+  'typing:update': (data: { chatId: string; userId: string; typing: boolean }) => void
   'error:message': (data: { code: string; message: string }) => void
 }
 export type ClientToServerEvents = {
@@ -86,6 +90,8 @@ export type ClientToServerEvents = {
     data: { messageId: string; emoji: string },
     ack: (result: { ok: true } | { error: string }) => void,
   ) => void
+  'typing:start': (data: { chatId: string }) => void
+  'typing:stop': (data: { chatId: string }) => void
 }
 
 export type IceServer = { urls: string | string[]; username?: string; credential?: string }

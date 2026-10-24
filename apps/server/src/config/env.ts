@@ -7,6 +7,7 @@ dotenv.config({
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
   JWT_SECRET: z.string().min(5),
   SERVER_PORT: z.coerce.number().int().positive().default(3000),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),

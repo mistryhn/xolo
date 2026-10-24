@@ -1,11 +1,14 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useChatStore } from '../../store/chatStore'
-import { formatMessageDay, isSameDay } from '../../lib/dates'
+import { usePresenceStore } from '../../store/presenceStore'
+import { formatLastSeen, formatMessageDay, isSameDay } from '../../lib/dates'
+import { socket } from '../../lib/socket'
 import { useVideoCall } from './useVideoCall'
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export function ChatWindow({
   title,
+  otherUserId,
   currentUserId,
   token,
   loading,
@@ -14,6 +17,7 @@ export function ChatWindow({
   error,
 }: {
   title: string
+  otherUserId: string
   currentUserId: string
   token: string
   loading: boolean
@@ -23,13 +27,48 @@ export function ChatWindow({
 }) {
   const { activeChatId, messages, add, applyReaction } = useChatStore()
   const { startCall, call, busyMessage } = useVideoCall()
+  const online = usePresenceStore((state) => state.presenceByUser[otherUserId]?.online ?? false)
+  const lastSeenAt = usePresenceStore(
+    (state) => state.presenceByUser[otherUserId]?.lastSeenAt ?? null,
+  )
+  const typingKey = activeChatId && otherUserId ? `${activeChatId}:${otherUserId}` : ''
+  const typingState = usePresenceStore((state) =>
+    typingKey ? state.typingByChat[typingKey] : undefined,
+  )
+  const setTyping = usePresenceStore((state) => state.setTyping)
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const bottom = useRef<HTMLDivElement>(null)
+  const typingActive = useRef(false)
+  const lastTypingSent = useRef(0)
+  const partnerTyping = typingState?.typing ?? false
+  const typingUpdatedAt = typingState?.updatedAt ?? 0
+
+  const stopTyping = useCallback(() => {
+    if (!activeChatId || !typingActive.current) return
+    socket.emit('typing:stop', { chatId: activeChatId })
+    typingActive.current = false
+    lastTypingSent.current = 0
+  }, [activeChatId])
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!partnerTyping || !activeChatId || !otherUserId) return
+    const timer = window.setTimeout(() => setTyping(activeChatId, otherUserId, false), 5_500)
+    return () => window.clearTimeout(timer)
+  }, [partnerTyping, typingUpdatedAt, activeChatId, otherUserId, setTyping])
+
+  useEffect(
+    () => () => {
+      if (activeChatId && typingActive.current) socket.emit('typing:stop', { chatId: activeChatId })
+      typingActive.current = false
+      lastTypingSent.current = 0
+    },
+    [activeChatId],
+  )
 
   if (!activeChatId)
     return (
@@ -52,7 +91,18 @@ export function ChatWindow({
           ‹
         </button>
         <span className="avatar">{title.slice(0, 1).toUpperCase()}</span>
-        <strong>{title}</strong>
+        <div className="conversation-identity">
+          <strong>{title}</strong>
+          <span
+            className={`conversation-status ${
+              partnerTyping ? 'typing' : online ? 'online' : 'offline'
+            }`}
+            aria-live="polite"
+          >
+            <span className="presence-dot" aria-hidden="true" />
+            {partnerTyping ? 'typing…' : online ? 'Online' : formatLastSeen(lastSeenAt)}
+          </span>
+        </div>
         <button
           className="video-call-button"
           disabled={!activeChatId || !!call}
@@ -159,6 +209,7 @@ export function ChatWindow({
           const clientId = crypto.randomUUID()
           const text = body.trim()
           if (!text || sending) return
+          stopTyping()
           setSending(true)
           try {
             const response = await fetch(`${api}/api/chats/${activeChatId}/messages`, {
@@ -185,7 +236,22 @@ export function ChatWindow({
         <input
           value={body}
           maxLength={1000}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value
+            setBody(value)
+            if (!activeChatId) return
+            if (!value.trim()) {
+              stopTyping()
+              return
+            }
+            const now = Date.now()
+            if (!typingActive.current || now - lastTypingSent.current > 2_000) {
+              socket.emit('typing:start', { chatId: activeChatId })
+              typingActive.current = true
+              lastTypingSent.current = now
+            }
+          }}
+          onBlur={stopTyping}
           aria-label="Message"
           placeholder="Type a message"
         />

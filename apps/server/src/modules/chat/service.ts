@@ -7,7 +7,7 @@ export async function createChat(userId: string, recipientId: string) {
   if (userId === recipientId) throw new Error('You cannot start a chat with yourself')
 
   const people = await db
-    .select({ id: users.id, name: users.name })
+    .select({ id: users.id, name: users.name, lastSeenAt: users.lastSeenAt })
     .from(users)
     .where(inArray(users.id, [userId, recipientId]))
   const recipient = people.find((person) => person.id === recipientId)

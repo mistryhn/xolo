@@ -1,6 +1,6 @@
 import type { Server, Socket } from 'socket.io'
 import { randomUUID } from 'node:crypto'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import {
   messageSchema,
   reactionSchema,
@@ -8,12 +8,36 @@ import {
   type ServerToClientEvents,
 } from '@xolo/protocol'
 import { addMessage, chatRecipients, joinChat, participant, toggleReaction } from './service.js'
+import { getOnlineStates, startTyping, stopTyping } from '../presence/service.js'
 import { db } from '../../db/drizzle.js'
 import { messages, reactions } from '../../db/schema/chats.js'
 import { chats } from '../../db/schema/chats.js'
 import { hasTurnServer, iceServers } from '../../config/env.js'
 import { users } from '../../db/schema/users.js'
 type XoloSocket = Socket<ClientToServerEvents, ServerToClientEvents> & { data: { userId: string } }
+
+async function emitPresenceSnapshot(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  socket: XoloSocket,
+  userIds: string[],
+) {
+  if (!userIds.length) return
+  const [onlineStates, rows] = await Promise.all([
+    getOnlineStates(userIds),
+    db
+      .select({ id: users.id, lastSeenAt: users.lastSeenAt })
+      .from(users)
+      .where(inArray(users.id, userIds)),
+  ])
+  const lastSeen = new Map(rows.map((row) => [row.id, row.lastSeenAt]))
+  userIds.forEach((userId) =>
+    socket.emit('presence:update', {
+      userId,
+      online: onlineStates.get(userId) ?? false,
+      lastSeenAt: lastSeen.get(userId)?.toISOString() ?? null,
+    }),
+  )
+}
 
 type ActiveCall = {
   callId: string
@@ -170,13 +194,22 @@ export function registerChatSocket(
       socket
         .to(`chat:${chatId}`)
         .emit('chat:participant', { chatId, alias: result.participant.alias, action: 'joined' })
+      await emitPresenceSnapshot(io, socket, await chatRecipients(chatId, socket.data.userId))
       ack({ alias: result.participant.alias })
     } catch (e) {
       ack({ error: e instanceof Error ? e.message : 'Unable to join' })
     }
   })
   socket.on('chat:leave', ({ chatId }) => {
+    socket.to(`chat:${chatId}`).emit('typing:update', {
+      chatId,
+      userId: socket.data.userId,
+      typing: false,
+    })
     socket.leave(`chat:${chatId}`)
+    void stopTyping(chatId, socket.data.userId).catch((error) =>
+      console.error('[typing] stop failed', error),
+    )
   })
   socket.on('chat:created', async ({ chatId }, ack) => {
     try {
@@ -188,6 +221,28 @@ export function registerChatSocket(
     } catch (e) {
       ack({ error: e instanceof Error ? e.message : 'Unable to notify chat participants' })
     }
+  })
+  socket.on('typing:start', ({ chatId }) => {
+    void (async () => {
+      if (!(await participant(chatId, socket.data.userId))) return
+      await startTyping(chatId, socket.data.userId)
+      socket.to(`chat:${chatId}`).emit('typing:update', {
+        chatId,
+        userId: socket.data.userId,
+        typing: true,
+      })
+    })().catch((error) => console.error('[typing] start failed', error))
+  })
+  socket.on('typing:stop', ({ chatId }) => {
+    void (async () => {
+      if (!(await participant(chatId, socket.data.userId))) return
+      await stopTyping(chatId, socket.data.userId)
+      socket.to(`chat:${chatId}`).emit('typing:update', {
+        chatId,
+        userId: socket.data.userId,
+        typing: false,
+      })
+    })().catch((error) => console.error('[typing] stop failed', error))
   })
   socket.on('chat:message', async (data, ack) => {
     try {
@@ -204,6 +259,12 @@ export function registerChatSocket(
         senderId: message.senderId,
         createdAt: message.createdAt.toISOString(),
         clientId: message.clientId,
+      })
+      await stopTyping(input.chatId, socket.data.userId)
+      io.to(`chat:${input.chatId}`).emit('typing:update', {
+        chatId: input.chatId,
+        userId: socket.data.userId,
+        typing: false,
       })
       ack({ ok: true })
     } catch (e) {
