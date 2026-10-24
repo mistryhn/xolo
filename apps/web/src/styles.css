@@ -557,6 +557,26 @@ button {
   color: var(--text-muted);
   font-size: 13px;
 }
+.message-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.message-day::before,
+.message-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+.message-day:first-child {
+  margin-top: 0;
+}
 .message {
   display: flex;
   width: 100%;

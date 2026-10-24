@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useChatStore } from '../../store/chatStore'
+import { formatMessageDay, isSameDay } from '../../lib/dates'
 import { useVideoCall } from './useVideoCall'
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -72,71 +73,81 @@ export function ChatWindow({
         {!loading && messages.length === 0 && (
           <p className="thread-note">No messages yet. Say hello.</p>
         )}
-        {messages.map((m) => {
+        {messages.map((m, index) => {
           const own = String(m.senderId).toLowerCase() === String(currentUserId).toLowerCase()
           const heart = m.reactions?.find((reaction) => reaction.emoji === '❤️')
+          const previous = messages[index - 1]
+          const showDay =
+            !previous || !isSameDay(new Date(previous.createdAt), new Date(m.createdAt))
           return (
-            <article
-              className={`message ${own ? 'sent' : 'received'}`}
-              key={m.id}
-              style={{ justifyContent: own ? 'flex-end' : 'flex-start' }}
-            >
-              <div
-                className="message-stack"
-                style={{
-                  alignItems: own ? 'flex-end' : 'flex-start',
-                  marginLeft: own ? 'auto' : 0,
-                  marginRight: own ? 0 : 'auto',
-                }}
+            <Fragment key={m.id}>
+              {showDay && (
+                <div className="message-day">
+                  <span>{formatMessageDay(m.createdAt)}</span>
+                </div>
+              )}
+              <article
+                className={`message ${own ? 'sent' : 'received'}`}
+                style={{ justifyContent: own ? 'flex-end' : 'flex-start' }}
               >
-                <div className="message-bubble">
-                  <span>{m.body}</span>
-                  <time>
-                    {new Date(m.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </time>
-                </div>
-                <div className="message-reactions">
-                  {heart && <span className="reaction-count">❤️ {heart.count}</span>}
-                  <button
-                    className={`reaction-button ${heart?.reactedByMe ? 'reacted' : ''}`}
-                    aria-label={heart?.reactedByMe ? 'Remove heart reaction' : 'React with heart'}
-                    title={heart?.reactedByMe ? 'Remove heart reaction' : 'React with heart'}
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(
-                          `${api}/api/chats/${activeChatId}/messages/${m.id}/reactions`,
-                          {
-                            method: 'POST',
-                            headers: {
-                              'content-type': 'application/json',
-                              authorization: `Bearer ${token}`,
+                <div
+                  className="message-stack"
+                  style={{
+                    alignItems: own ? 'flex-end' : 'flex-start',
+                    marginLeft: own ? 'auto' : 0,
+                    marginRight: own ? 0 : 'auto',
+                  }}
+                >
+                  <div className="message-bubble">
+                    <span>{m.body}</span>
+                    <time>
+                      {new Date(m.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </time>
+                  </div>
+                  <div className="message-reactions">
+                    {heart && <span className="reaction-count">❤️ {heart.count}</span>}
+                    <button
+                      className={`reaction-button ${heart?.reactedByMe ? 'reacted' : ''}`}
+                      aria-label={heart?.reactedByMe ? 'Remove heart reaction' : 'React with heart'}
+                      title={heart?.reactedByMe ? 'Remove heart reaction' : 'React with heart'}
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(
+                            `${api}/api/chats/${activeChatId}/messages/${m.id}/reactions`,
+                            {
+                              method: 'POST',
+                              headers: {
+                                'content-type': 'application/json',
+                                authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({ emoji: '❤️' }),
                             },
-                            body: JSON.stringify({ emoji: '❤️' }),
-                          },
-                        )
-                        const json = await response.json()
-                        if (!response.ok) throw new Error(json.error?.message ?? 'Could not react')
-                        applyReaction(
-                          {
-                            ...json.data,
-                            userId: currentUserId,
-                          },
-                          currentUserId,
-                        )
-                        onError('')
-                      } catch (cause) {
-                        onError(cause instanceof Error ? cause.message : 'Could not react')
-                      }
-                    }}
-                  >
-                    {heart?.reactedByMe ? '♥' : '♡'}
-                  </button>
+                          )
+                          const json = await response.json()
+                          if (!response.ok)
+                            throw new Error(json.error?.message ?? 'Could not react')
+                          applyReaction(
+                            {
+                              ...json.data,
+                              userId: currentUserId,
+                            },
+                            currentUserId,
+                          )
+                          onError('')
+                        } catch (cause) {
+                          onError(cause instanceof Error ? cause.message : 'Could not react')
+                        }
+                      }}
+                    >
+                      {heart?.reactedByMe ? '♥' : '♡'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </article>
+              </article>
+            </Fragment>
           )
         })}
         <div ref={bottom} />
