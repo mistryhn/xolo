@@ -41,6 +41,7 @@ Xolo is a full-stack realtime chat application with video calls, presence, typin
 ## Getting Started
 
 1. **Clone and install dependencies**
+
 ```bash
 git clone <repo-url>
 cd xolo
@@ -48,22 +49,26 @@ pnpm install
 ```
 
 2. **Configure environment**
+
 ```bash
 cp .env.example .env
 # Edit .env with your database/redis/JWT settings
 ```
 
 3. **Start databases**
+
 ```bash
 docker compose up -d
 ```
 
 4. **Run migrations**
+
 ```bash
 pnpm db:migrate
 ```
 
 5. **Start development servers**
+
 ```bash
 pnpm dev
 ```
@@ -73,6 +78,7 @@ The web app runs on `http://localhost:5173` and the API on `http://localhost:300
 ## Environment Variables
 
 See `.env.example` for all configuration options including:
+
 - Database connection
 - Redis URL
 - JWT secret
@@ -82,6 +88,7 @@ See `.env.example` for all configuration options including:
 ## Testing on Slow Networks
 
 Chrome DevTools → Network → Throttling to test:
+
 - Slow 3G / Fast 3G
 - Offline mode (messages queue and send on reconnect)
 - Connection drops mid-call

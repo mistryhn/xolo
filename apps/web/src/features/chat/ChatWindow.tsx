@@ -214,19 +214,16 @@ export function ChatWindow({
           stopTyping()
           setSending(true)
           try {
-            const response = await fetchWithRetry(
-              `${api}/api/chats/${activeChatId}/messages`,
-              {
-                method: 'POST',
-                headers: {
-                  'content-type': 'application/json',
-                  authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ body: text, clientId }),
-                timeout: 15000,
-                retries: 1,
+            const response = await fetchWithRetry(`${api}/api/chats/${activeChatId}/messages`, {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${token}`,
               },
-            )
+              body: JSON.stringify({ body: text, clientId }),
+              timeout: 15000,
+              retries: 1,
+            })
             const json = await response.json()
             if (!response.ok) throw new Error(json.error?.message ?? 'Could not send message')
             if (json.data)
